@@ -131,3 +131,21 @@ Aunque nuestra `ListaEnlazada` tiene guardado un puntero directo `this.cola` que
 3. **Imposibilidad de retroceder:** Estando parados en `this.cola`, no podemos dar "un paso hacia atrás" para llegar al penúltimo nodo. La única forma de encontrar cuál es el nodo que apunta a `this.cola` es empezar desde `this.cabeza` y recorrer toda la cadena nodo por nodo hasta detenernos justo un paso antes del final ($n - 1$ pasos $\implies O(n)$).
 
 *(Nota: Si quisiéramos que eliminar la cola también fuera $O(1)$, necesitaríamos una **lista doblemente enlazada**, donde cada nodo tenga tanto `siguiente` como `anterior`).*
+
+---
+
+## Comparativa: `ListaEnlazada` vs. Arreglo (`Array`)
+
+Sea $n$ la cantidad de atenciones médicas guardadas en el historial de una mascota:
+
+| Operación | `ListaEnlazada` (con `cabeza` y `cola`) | Arreglo (`Array` en JS) | ¿Por qué ocurre esta diferencia? |
+| :--- | :--- | :--- | :--- |
+| **Agregar al final** | **$O(1)$** (`agregarAlFinal`) | **$O(1)$ amortizado** (`.push()`) | En nuestra `ListaEnlazada` tenemos guardado el puntero `this.cola`, así que enganchamos el nuevo nodo al instante. En un arreglo se escribe directo en la última casilla libre (solo toma $O(n)$ ocasionalmente cuando se llena y debe pedir más memoria). |
+| **Agregar al inicio** | **$O(1)$** (`agregarAlInicio`) | **$O(n)$** (`.unshift()`) | En la lista enlazada basta con apuntar `nuevoNodo.siguiente` a `this.cabeza` y mover `this.cabeza` (2 pasos fijos). En un arreglo, meter algo en la posición `0` obliga a **empujar todos los demás $n$ elementos** una casilla hacia la derecha. |
+| **Acceder a la atención número $k$** | **$O(n)$** *(exactamente $k$ pasos)* | **$O(1)$** (`arreglo[k]`) | Los arreglos están guardados en casillas contiguas de memoria y saltan directo al índice `k` con una fórmula matemática. En la `ListaEnlazada` no hay índices: toca empezar en `this.cabeza` y caminar de vagón en vagón ($k$ saltos) hasta llegar. |
+| **Buscar (por condición)** | **$O(n)$** (`buscar`) | **$O(n)$** (`.find()`) | Si los datos no están ordenados por el criterio que buscas, en ambas estructuras toca revisar elemento por elemento desde el inicio hasta encontrar la primera coincidencia (o llegar al final). |
+| **Eliminar la primera** | **$O(1)$** (`eliminar` cuando es `cabeza`) | **$O(n)$** (`.shift()`) | En la `ListaEnlazada` basta con mover `this.cabeza = this.cabeza.siguiente` y restar 1 al tamaño. En un arreglo, borrar la posición `0` deja un hueco que obliga a **correr todos los demás elementos** una posición hacia la izquierda. |
+
+### Conclusión práctica para **Patitas**
+* **Cuándo gana `ListaEnlazada`:** Cuando necesitas **insertar o borrar al principio (o en medio una vez ubicado el nodo)** sin mover miles de registros de lugar en memoria ($O(1)$ frente a $O(n)$ del arreglo).
+* **Cuándo gana un Arreglo:** Cuando necesitas **saltar directo a una posición específica** (`historial[45]`) en tiempo constante $O(1)$ o aprovechar mejor la memoria caché al recorrer todo en bloque.
