@@ -18,6 +18,23 @@ class RegistroClinico {
     return this.historiales.get(mascota) || null;
   }
 
+  eliminarAtencion(mascota, condicion) {
+    const historial = this.historiales.get(mascota);
+    if (!historial) {
+      return [];
+    }
+
+    const eliminadas = [];
+    let eliminada = historial.eliminar(condicion);
+
+    while (eliminada !== null) {
+      eliminadas.push(eliminada);
+      eliminada = historial.eliminar(condicion);
+    }
+
+    return eliminadas;
+  }
+
   obtenerMascotas() {
     return Array.from(this.historiales.keys());
   }
