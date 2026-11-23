@@ -311,3 +311,12 @@ Cada nodo del catálogo tiene la forma `{ nombre, servicios, subcategorias }`, d
    - `totalSubcategorias` pasa a `2 + 1 = 3`.
    - Retorna `0 + 3 = 3` y sale de la pila (`pop`).
    - Pila final: `[]` -> Resultado: `3`.
+
+   ### Error común: aplicar el descuento en cada llamada recursiva
+
+* **En qué consiste:** Multiplicar por `0.9` (aplicar el 10 % de descuento) dentro de cada llamada recursiva en lugar de hacerlo una sola vez al final sobre la suma total.
+* **Ejemplo numérico con "Cirugías":**
+  * Suma bruta de servicios (`Gata` $280.000 + `Perra` $350.000 + `Con anestesia` $150.000) = `$780.000`.
+  * **Resultado correcto (10 % una sola vez al final):** `$780.000 × 0,9 = $702.000` (descuento de `$78.000`).
+  * **Si se aplica en cada nivel al subir (ej. tras descontar subcategorías y volver a descontar en "Cirugías"):** `$702.000 × 0,9 = $631.800` (descuento real de `$148.200`, equivalente al **19 %** en lugar del 10 %). Si hay más niveles anidados, el factor `0.9` se repite varias veces (`0.9^k`).
+* **Por qué es incorrecto:** Aplica un descuento compuesto/cascada en vez de un único 10 % sobre el paquete total y hace que el precio dependa de qué tan profundo esté anidado el árbol en lugar del valor real de los servicios.
