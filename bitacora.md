@@ -149,3 +149,70 @@ Sea $n$ la cantidad de atenciones médicas guardadas en el historial de una masc
 ### Conclusión práctica para **Patitas**
 * **Cuándo gana `ListaEnlazada`:** Cuando necesitas **insertar o borrar al principio (o en medio una vez ubicado el nodo)** sin mover miles de registros de lugar en memoria ($O(1)$ frente a $O(n)$ del arreglo).
 * **Cuándo gana un Arreglo:** Cuando necesitas **saltar directo a una posición específica** (`historial[45]`) en tiempo constante $O(1)$ o aprovechar mejor la memoria caché al recorrer todo en bloque.
+
+---
+
+## Sala de espera de Patitas: Cola (`Queue` FIFO) con nodos
+
+### Estado de la cola después de encolar a Lola, Toby y Mía y desencolar una vez
+
+En una **Cola (FIFO)** con referencias **`frente`** (el siguiente paciente a ser atendido) y **`final`** (el último paciente que llegó a la fila), cada nodo apunta hacia el paciente que llegó inmediatamente después de él.
+
+#### Paso 0: Cola vacía (estado inicial)
+```text
+frente ──► null
+final  ──► null
+tamanio = 0
+frente ──► [ Lola ] ──► null
+              ▲
+            final
+tamanio = 1
+frente ──► [ Lola ] ──► [ Toby ] ──► null
+                           ▲
+                         final
+tamanio = 2
+frente ──► [ Lola ] ──► [ Toby ] ──► [ Mía ] ──► null
+                                        ▲
+                                      final
+tamanio = 3
+[ Lola ] (atendida / sale de la fila)
+
+frente ──► [ Toby ] ──► [ Mía ] ──► null
+                           ▲
+                         final
+tamanio = 2
+
+---
+
+## Comparación de rendimiento: `Cola` (nodos) vs. Arreglo (`push` + `shift`)
+
+### Resultados medidos con 100.000 turnos (`node pruebas/benchmark_cola.js`)
+
+| Implementación | Encolar 100.000 | Desencolar 100.000 | Tiempo total | Complejidad (Encolar / Desencolar) |
+| :--- | :--- | :--- | :--- | :--- |
+| **`Cola` con Nodos (`frente` y `final`)** | `1.25 ms` | **`1.18 ms`** | **`2.43 ms`** | **$O(1)$** / **$O(1)$** |
+| **Arreglo (`Array` con `push` y `shift`)** | `1.56 ms` | **`643.85 ms`** | **`645.41 ms`** | **$O(1)$ amortizado** / **$O(n)$** |
+
+* **Aceleración al desencolar:** La `Cola` con nodos fue **544.6x más rápida** que el arreglo con `.shift()`.
+
+### Explicación de la diferencia
+* **Al encolar (`encolar` vs `push`):** Ambas estructuras insertan al final sin recorrer la fila, por lo que operan en tiempo constante **$O(1)$** (`1.25 ms` y `1.56 ms`).
+* **Al desencolar (`desencolar` vs `shift`):** En nuestra `Cola` con nodos, atender al siguiente paciente solo cambia la referencia `this.frente = this.frente.siguiente` en **$O(1)$** (`1.18 ms` para vaciar los 100.000 turnos). En cambio, cada `arreglo.shift()` saca el índice `0` y obliga a **correr todos los demás elementos una posición hacia la izquierda** ($O(n)$ por cada turno $\implies O(n^2)$ en total), disparando el tiempo a `643.85 ms`.
+---
+
+## Complejidad algorítmica: `Cola` (nodos) vs. Arreglo (`push` + `shift`)
+
+Sea $n$ la cantidad de turnos esperando en la sala de espera:
+
+| Operación | `Cola` (Nodos con `frente` y `final`) | Arreglo (`Array` con `push` y `shift`) | ¿Por qué ocurre esta diferencia? |
+| :--- | :--- | :--- | :--- |
+| **Encolar** (llegada al final) | **$O(1)$** (`encolar`) | **$O(1)$ amortizado** (`.push()`) | En la `Cola`, tenemos guardado el puntero `this.final`, así que enganchamos el nuevo nodo detrás del último en 2 pasos fijos. En el arreglo, `.push()` escribe directo en la siguiente casilla libre al final (solo toma $O(n)$ de forma aislada cuando se llena su capacidad interna y debe redimensionarse). |
+| **Desencolar** (atender al frente) | **$O(1)$** (`desencolar`) | **$O(n)$** (`.shift()`) | En la `Cola`, basta con mover el puntero `this.frente = this.frente.siguiente` en 1 paso fijo sin tocar el resto de la fila. En el arreglo, `.shift()` extrae el elemento del índice `0` y deja un hueco al inicio, obligando a **desplazar todos los $n - 1$ elementos restantes una posición hacia la izquierda** para reindexarlos. |
+| **Ver frente** (consultar siguiente) | **$O(1)$** (`verFrente`) | **$O(1)$** (`arreglo[0]`) | Ambas estructuras tienen acceso directo al primer elemento sin recorrer la fila ni modificarla. |
+| **Tamaño / ¿Está vacía?** | **$O(1)$** (`tamanio`, `estaVacia`) | **$O(1)$** (`arreglo.length === 0`) | Ambas mantienen un contador interno actualizado (`this._tamanio` y `.length`), por lo que consultarlo es inmediato. |
+| **Espacio auxiliar (memoria)** | **$O(n)$** | **$O(n)$** | Ambas almacenan $n$ referencias a los turnos. La `Cola` envuelve cada turno en un objeto `Nodo` con un puntero extra (`siguiente`), mientras el arreglo guarda las referencias en un bloque contiguo de memoria. |
+
+### Explicación de la diferencia en rendimiento (por qué `643.85 ms` vs. `1.18 ms`)
+
+* **El efecto acumulado de `.shift()` ($O(n^2)$ en total):** Aunque encolar $100.000$ turnos cuesta prácticamente lo mismo en ambas estructuras (`1.25 ms` vs. `1.56 ms`), al desencolar toda la fila una por una con `.shift()`, el arreglo realiza $(n - 1) + (n - 2) + \dots + 1 = \frac{n(n - 1)}{2} \approx 5.000.000.000$ desplazamientos de memoria para $n = 100.000$. Eso convierte el vaciado completo de la fila en un proceso cuadrático **$O(n^2)$**.
+* **La ventaja de los punteros en `Cola` ($O(n)$ en total):** Como nuestra `Cola` conecta los turnos mediante nodos enlazados y mantiene referencias directas a `frente` y `final`, cada llamada a `desencolar()` solo redirige una referencia (`this.frente = this.frente.siguiente`) en tiempo constante **$O(1)$**. Vaciar los $100.000$ turnos realiza exactamente $100.000$ pasos simples ($O(n)$ en total), logrando ser **544 veces más rápido** (`1.18 ms`).
