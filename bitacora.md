@@ -365,3 +365,38 @@ Una lista enlazada simple solo tiene enlaces hacia adelante (`nodo -> nodo.sigui
 | **Espacio auxiliar en pila** | **$O(1)$** (solo usa un puntero `actual`) | **$O(n)$** (un marco en la *call stack* por cada nodo) |
 | **Ventaja principal** | No consume pila de llamadas; soporta listas muy largas sin riesgo de desbordamiento. | Refleja directamente la definición inductiva de la estructura y permite invertir el recorrido (`imprimirAlReves`) de forma natural. |
 | **Desventaja principal** | Requiere gestionar manualmente punteros de avance o estructuras extra para recorrer en reversa. | Riesgo de desbordamiento de pila (*Maximum call stack size exceeded*) si el historial tiene decenas de miles de nodos. |
+### Prueba de estrés: `tamanioRecursivo()` con 100.000 atenciones
+
+* **Resultado:** Al ejecutar `tamanioRecursivo()` sobre una `ListaEnlazada` de `100.000` atenciones, Node.js lanza `RangeError: Maximum call stack size exceeded`.
+* **Relación con la memoria $O(n)$ de la *call stack*:** Cada llamada recursiva `contarNodo(nodo.siguiente)` apila un nuevo marco antes de llegar al caso base (`nodo === null`), lo que hace que el uso de memoria de la pila crezca de forma lineal en **$O(n)$**. Para $100.000$ elementos se requieren $100.001$ marcos activos en la pila, superando el límite de profundidad de la pila de llamadas de V8/Node.js (a diferencia del recorrido iterativo `while`, que usa memoria auxiliar **$O(1)$**).
+
+### Complejidad de tiempo y memoria por operación (`ListaEnlazada`: Iterativa vs. Recursiva)
+
+Sea $n$ el número de nodos en la lista enlazada (y en `imprimirAlReves()`, el espacio de pila también incluye los marcos de activación de las llamadas recursivas):
+
+| Operación | Versión Iterativa — Tiempo | Versión Iterativa — Memoria auxiliar | Versión Recursiva — Tiempo | Versión Recursiva — Memoria auxiliar (*call stack*) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tamaño** (`obtenerTamanio()` vs. `tamanioRecursivo()`) | $O(1)$ *(con contador `this.tamanio`)* / $O(n)$ *(contando con `while`)* | $O(1)$ | $O(n)$ | $O(n)$ *(un marco por nodo hasta `null`; riesgo de *stack overflow* con $100.000$ nodos)* |
+| **Costo total** (suma iterativa vs. `costoTotalRecursivo()`) | $O(n)$ | $O(1)$ | $O(n)$ | $O(n)$ *(un marco por nodo hasta `null`)* |
+| **Buscar por condición** (`buscar(condicion)` vs. `buscarRecursivo(condicion)`) | $O(n)$ *(peor caso; corte temprano si coincide antes)* | $O(1)$ | $O(n)$ *(peor caso; corte temprano si coincide antes)* | $O(n)$ *(hasta el nodo encontrado o hasta `null`)* |
+| **Recorrer en orden inverso** (`recorrer()` + pila/arreglo auxiliar vs. `imprimirAlReves()`) | $O(n)$ | $O(n)$ *(si usas arreglo o pila explícita para invertir)* | $O(n)$ | $O(n)$ *(usa la *call stack* LIFO sin arreglos ni pilas explícitas)* |
+
+---
+
+## Decisión oficial en el motor `Patitas` (`ListaEnlazada`)
+
+Para las operaciones de consulta y cálculo sobre los historiales clínicos en producción, se establece la siguiente configuración oficial:
+
+| Operación | Versión oficial en producción | Complejidad (Tiempo / Espacio) | Justificación de la decisión |
+| :--- | :--- | :--- | :--- |
+| **Tamaño del historial** | **Iterativa** (`obtenerTamanio()` / conteo con `while`) | $O(1)$ con contador (o $O(n)$ con `while`) / **$O(1)$ espacio** | Con `this.tamanio` responde de inmediato sin recorrer nodos; incluso si se contara nodo por nodo con `while`, usa memoria constante $O(1)$, mientras que `tamanioRecursivo()` falla con `RangeError: Maximum call stack size exceeded` al llegar a `100.000` atenciones. |
+| **Costo total del historial** | **Iterativa** (suma con ciclo `while`) | $O(n)$ tiempo / **$O(1)$ espacio** | Realiza exactamente las mismas sumas que `costoTotalRecursivo()` (respetando valores en `$0` como el control posquirúrgico de Mía), pero sin apilar $n$ marcos en la *call stack*, evitando desbordamientos en pacientes crónicos o historiales masivos. |
+| **Búsqueda por condición** | **Iterativa** (`buscar(condicion)`) | $O(n)$ tiempo / **$O(1)$ espacio** | Ambas detienen el recorrido apenas encuentran la primera coincidencia (*early return*), pero la iterativa no consume memoria proporcional a la posición del nodo encontrado en la pila de llamadas. |
+| **Mostrar historial de más reciente a más antiguo** | **Recursiva controlada** (`imprimirAlReves()`) — *solo para historiales individuales cortos* | $O(n)$ tiempo / **$O(n)$ espacio** | Aprovecha el orden **LIFO** de la *call stack* para invertir la salida sin crear arreglos ni pilas explícitas, lo cual es seguro en historiales individuales de mascotas (decenas de consultas). Si se llegaran a procesar lotes masivos ($> 10.000$ nodos), se migraría a recorrido iterativo con arreglo invertido. |
+
+### Síntesis de criterio de ingeniería
+
+1. **Estabilidad en producción:** La prueba de estrés con **100.000 atenciones** demostró que la recursión lineal sobre listas enlazadas en JavaScript no es segura para volúmenes altos porque la pila de llamadas crece en **$O(n)$** hasta agotar la capacidad del motor V8 (*stack overflow*).
+2. **Mismo tiempo, menor memoria:** En `tamanio`, `costoTotal` y `buscar`, la versión iterativa mantiene exactamente la misma complejidad temporal **$O(n)$** (o $O(1)$ en `obtenerTamanio()`) reduciendo el espacio auxiliar en pila de **$O(n)$ a $O(1)$**.
+3. **Conservación didáctica:** Los métodos `tamanioRecursivo()`, `costoTotalRecursivo()` y `buscarRecursivo(condicion)` se mantienen documentados y verificados frente a los historiales de **Lola**, **Toby** y **Mía** como evidencia de diseño inductivo, pero el motor oficial utiliza las implementaciones iterativas para garantizar disponibilidad ante cualquier tamaño de historial.
+
