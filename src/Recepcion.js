@@ -21,6 +21,7 @@ class Recepcion {
         } else if (!this.generales.estaVacia()) {
             return this.generales.desencolar();
         } else {
+            console.log("La sala de espera está vacía: no hay pacientes por llamar.");
             return null;
         }
     }

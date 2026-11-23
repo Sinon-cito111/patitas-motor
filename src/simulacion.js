@@ -1,5 +1,10 @@
 const Recepcion = require("./Recepcion");
+const RegistroClinico = require("./RegistroClinico");
+const Editor = require("./Editor");
+
 const recepcion = new Recepcion();
+const registro = new RegistroClinico();
+const editor = new Editor(registro);
 
 function formatearHora(minutosTotales) {
   const horas = Math.floor(minutosTotales / 60);
@@ -37,32 +42,90 @@ for (let minuto = 480; atendidos < turnosSabado.length; minuto++) {
     }
   }
 
-if (minuto >= consultorioLibreEn) {
+  if (minuto >= consultorioLibreEn) {
     const siguiente = recepcion.llamarSiguiente();
 
     if (siguiente !== null) {
       const minutosEspera = minuto - siguiente.minutoLlegada;
       if (siguiente.tipo.trim().toLowerCase() === "urgencia") {
-  esperaUrgencias += minutosEspera;
-  cantidadUrgencias++;
-} else {
-  esperaGenerales += minutosEspera;
-  cantidadGenerales++;
-}
+        esperaUrgencias += minutosEspera;
+        cantidadUrgencias++;
+      } else {
+        esperaGenerales += minutosEspera;
+        cantidadGenerales++;
+      }
+
       const horaInicio = formatearHora(minuto);
       const horaFin = formatearHora(minuto + 20);
+
+      editor.agregar(siguiente.mascota, {
+        fecha: "2026-11-28",
+        horaInicio,
+        horaFin,
+        tipo: siguiente.tipo,
+        motivo: siguiente.motivo
+      });
+
       console.log(
         `  --> [${horaInicio} - ${horaFin}] ENTRA A CONSULTORIO: ${siguiente.mascota.padEnd(6)} (${siguiente.tipo}) | ` +
-        `Llegó: ${formatearHora(siguiente.minutoLlegada)} | Espera: ${minutosEspera} min`
+        `Llegó: ${formatearHora(siguiente.minutoLlegada)} | Espera: ${minutosEspera} min | [Historial registrado]`
       );
+
       consultorioLibreEn = minuto + 20;
       atendidos++;
     }
   }
 }
+
 const promedioUrgencias = cantidadUrgencias > 0 ? esperaUrgencias / cantidadUrgencias : 0;
 const promedioGenerales = cantidadGenerales > 0 ? esperaGenerales / cantidadGenerales : 0;
 
 console.log("\n=== TIEMPO DE ESPERA PROMEDIO ===");
 console.log(`Urgencias (${cantidadUrgencias} pacientes): ${promedioUrgencias.toFixed(2)} minutos`);
 console.log(`Generales (${cantidadGenerales} pacientes): ${promedioGenerales.toFixed(2)} minutos`);
+
+console.log("\n=== CORRECCIÓN DE ERROR POR LA RECEPCIONISTA (EDITOR) ===");
+
+editor.agregar("Luna", {
+  fecha: "2026-11-28",
+  horaInicio: "10:25",
+  horaFin: "10:40",
+  tipo: "General",
+  motivo: "Baño medicado"
+});
+
+console.log(
+  "Error detectado -> Historial de Luna:",
+  registro.obtenerHistorial("Luna").aArreglo().map((a) => a.motivo)
+);
+
+const revertida = editor.deshacer();
+console.log(
+  `Deshacer (${revertida.tipo}) -> Se quitó "${revertida.atencion.motivo}" de ${revertida.mascota}`
+);
+
+editor.agregar("Toby", {
+  fecha: "2026-11-28",
+  horaInicio: "10:25",
+  horaFin: "10:40",
+  tipo: "General",
+  motivo: "Baño medicado"
+});
+
+console.log(
+  "Historial de Luna restaurado:",
+  registro.obtenerHistorial("Luna").aArreglo().map((a) => a.motivo)
+);
+console.log(
+  "Historial de Toby actualizado:",
+  registro.obtenerHistorial("Toby").aArreglo().map((a) => a.motivo)
+);
+
+console.log("\n=== HISTORIALES CLÍNICOS REGISTRADOS (PRODUCCIÓN) ===");
+for (const mascota of registro.obtenerMascotas()) {
+  const atenciones = registro.obtenerHistorial(mascota).aArreglo();
+  const detalle = atenciones
+    .map((a) => `[${a.horaInicio}-${a.horaFin}] ${a.motivo} (${a.tipo})`)
+    .join(" -> ");
+  console.log(`• ${mascota.padEnd(6)}: ${detalle}`);
+}
