@@ -48,13 +48,14 @@ class ListaEnlazada {
     let actual = this.cabeza;
 
     while (actual !== null) {
-        if (condicion(actual.dato)) {
-            return actual.dato;
-        }
-        actual = actual.siguiente;
+      if (condicion(actual.dato)) {
+        return actual.dato;
+      }
+      actual = actual.siguiente;
     }
     return null;
   }
+
   aArreglo() {
     const resultado = [];
 
@@ -64,85 +65,139 @@ class ListaEnlazada {
 
     return resultado;
   }
-estaVacia() {
-    return this.tamanio ===0;
-}
-obtenerTamanio() {
-    return this.tamanio;
-} 
-  buscar(condicion) {
-    let actual = this.cabeza;
 
-    while (actual !== null) {
-        if (condicion(actual.dato)) {
-            return actual.dato;
-        }
-        actual = actual.siguiente;
-    }
-    return null;
+  estaVacia() {
+    return this.tamanio === 0;
   }
 
-insertasDespuesDe(condicion, dato) {
+  obtenerTamanio() {
+    return this.tamanio;
+  }
+
+  insertasDespuesDe(condicion, dato) {
     let actual = this.cabeza;
 
     while (actual !== null) {
-        if (condicion(actual.dato)) {
-            const nuevoNodo = new Nodo(dato);
+      if (condicion(actual.dato)) {
+        const nuevoNodo = new Nodo(dato);
 
-            nuevoNodo.siguiente = actual.siguiente;
-            actual.siguiente = nuevoNodo;
-            
-            if (actual === this.cola) {
-                this.cola = nuevoNodo;
-            }
+        nuevoNodo.siguiente = actual.siguiente;
+        actual.siguiente = nuevoNodo;
 
-            this.tamanio++;
-            return true;
+        if (actual === this.cola) {
+          this.cola = nuevoNodo;
         }
-        actual = actual.siguiente;
+
+        this.tamanio++;
+        return true;
+      }
+      actual = actual.siguiente;
     }
     return false;
-}
+  }
 
-eliminar(condicion) {
+  eliminar(condicion) {
     if (this.cabeza === null) {
-        return null;
+      return null;
     }
 
     if (condicion(this.cabeza.dato)) {
-        const eliminado = this.cabeza.dato;
-        this.cabeza = this.cabeza.siguiente;
+      const eliminado = this.cabeza.dato;
+      this.cabeza = this.cabeza.siguiente;
 
-        if (this.cabeza === null) {
-            this.cola = null;
-        }
-        
-        this.tamanio--;
-        return eliminado;
+      if (this.cabeza === null) {
+        this.cola = null;
+      }
+
+      this.tamanio--;
+      return eliminado;
     }
 
     let anterior = this.cabeza;
     let actual = this.cabeza.siguiente;
 
     while (actual !== null) {
-        if (condicion(actual.dato)) {
-            const eliminado = actual.dato;
+      if (condicion(actual.dato)) {
+        const eliminado = actual.dato;
 
-            anterior.siguiente = actual.siguiente;
+        anterior.siguiente = actual.siguiente;
 
-            if (actual === this.cola) {
-                this.cola = anterior;
-            }
-            
-            this.tamanio--;
-            return eliminado;
+        if (actual === this.cola) {
+          this.cola = anterior;
         }
-        
-    anterior = actual;
-    actual = actual.siguiente;
+
+        this.tamanio--;
+        return eliminado;
+      }
+
+      anterior = actual;
+      actual = actual.siguiente;
     }
     return null;
+  }
+  tamanioRecursivo() {
+    function contarNodo(nodo) {
+      if (nodo === null) {
+        return 0;
+      }
+      return 1 + contarNodo(nodo.siguiente);
+    }
+
+    return contarNodo(this.cabeza);
+  }
+
+  costoTotalRecursivo() {
+    function sumarNodo(nodo) {
+      if (nodo === null) {
+        return 0;
+      }
+
+      const monto =
+        typeof nodo.dato === "number"
+          ? nodo.dato
+          : typeof nodo.dato?.precio === "number"
+          ? nodo.dato.precio
+          : typeof nodo.dato?.costo === "number"
+          ? nodo.dato.costo
+          : 0;
+
+      return monto + sumarNodo(nodo.siguiente);
+    }
+
+    return sumarNodo(this.cabeza);
+  }
+
+  buscarRecursivo(condicion) {
+    if (typeof condicion !== "function") {
+      return null;
+    }
+
+    function buscarNodo(nodo) {
+      if (nodo === null) {
+        return null;
+      }
+
+      if (condicion(nodo.dato)) {
+        return nodo.dato;
+      }
+
+      return buscarNodo(nodo.siguiente);
+    }
+
+    return buscarNodo(this.cabeza);
+  }
+  imprimirAlReves() {
+    const imprimirDesde = (nodo) => {
+      if (nodo === null) {
+        return;
+      }
+
+      imprimirDesde(nodo.siguiente);
+      console.log(nodo.dato);
+    };
+
+    imprimirDesde(this.cabeza);
+  }
 }
 
-}
 module.exports = ListaEnlazada;

@@ -320,3 +320,48 @@ Cada nodo del catálogo tiene la forma `{ nombre, servicios, subcategorias }`, d
   * **Resultado correcto (10 % una sola vez al final):** `$780.000 × 0,9 = $702.000` (descuento de `$78.000`).
   * **Si se aplica en cada nivel al subir (ej. tras descontar subcategorías y volver a descontar en "Cirugías"):** `$702.000 × 0,9 = $631.800` (descuento real de `$148.200`, equivalente al **19 %** en lugar del 10 %). Si hay más niveles anidados, el factor `0.9` se repite varias veces (`0.9^k`).
 * **Por qué es incorrecto:** Aplica un descuento compuesto/cascada en vez de un único 10 % sobre el paquete total y hace que el precio dependa de qué tan profundo esté anidado el árbol en lugar del valor real de los servicios.
+
+### Por qué `imprimirAlReves()` invierte el orden usando la pila de llamadas (*call stack*)
+
+Una lista enlazada solo tiene enlaces hacia adelante (`nodo -> nodo.siguiente`) y no permite retroceder directamente desde el final hacia el inicio. Para mostrar el historial desde la atención más reciente hasta la más antigua **sin crear un arreglo ni una pila manual (`[]` / `.push()` / `.pop()`)**, nos apoyamos en la pila de llamadas de JavaScript:
+
+1. **Apilamiento (bajada hasta el final):** Cada llamada `imprimirDesde(nodo.siguiente)` coloca un nuevo marco en la *call stack* guardando en su propio contexto local la referencia `nodo` de ese paso, y **suspende** la ejecución de las líneas que vienen después de la llamada recursiva hasta que la siguiente llamada retorne.
+2. **Caso base (`nodo === null`):** Cuando se alcanza el final de la lista, la llamada con `nodo === null` retorna de inmediato sin imprimir nada y sale de la pila.
+3. **Desapilamiento (subida en orden inverso — LIFO):** La pila de llamadas funciona bajo el principio **LIFO** (*Last-In, First-Out*: el último en entrar es el primero en salir). Al ir retornando cada llamada pendiente, se ejecuta la línea `console.log(nodo.dato)` **después** de haber visitado todo lo que venía delante; por eso el último nodo en entrar a la pila es el primero en imprimirse y la `cabeza` (la atención más antigua) es la última en mostrarse.
+
+---
+
+## Recursión sobre Lista Enlazada: Historiales de Lola, Toby y Mía
+
+### 1. Verificación de métodos recursivos vs. iterativos
+
+Se comprobó que `tamanioRecursivo()`, `costoTotalRecursivo()` y `buscarRecursivo(condicion)` producen exactamente los mismos resultados que sus equivalentes iterativos (`obtenerTamanio()`, suma iterativa con ciclo `while` y `buscar(condicion)`) sobre los registros digitalizados:
+
+| Paciente | Registros en historial | Tamaño (`rec` vs. `iter`) | Costo total (`rec` vs. `iter`) | Primera atención con `Dra. Ríos` (`rec` vs. `iter`) | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Lola** (gata) | 3 (`02/02`, `15/03`, `20/05`) | `3` vs. `3` | `$275.000` vs. `$275.000` (`85.000 + 40.000 + 150.000`) | `02/02 - Vacunación anual ($85.000)` | **OK** |
+| **Toby** (perro) | 3 (`10/01`, `12/01`, `05/04`) | `3` vs. `3` | `$265.000` vs. `$265.000` (`60.000 + 120.000 + 85.000`) | `05/04 - Vacunación anual ($85.000)` | **OK** |
+| **Mía** (gata) | 2 (`18/02`, `25/02`) | `2` vs. `2` | `$280.000` vs. `$280.000` (`280.000 + 0`) | `18/02 - Esterilización ($280.000)` | **OK** |
+
+* **Caso borde en el historial de Mía:** El registro del `25/02` (`Control posquirúrgico`) tiene `costo: 0`. Validar explícitamente el tipo numérico (`typeof ... === "number"`) evita confundir `0` con un dato ausente y mantiene la suma exacta en `$280.000`.
+
+---
+
+### 2. Funcionamiento de `imprimirAlReves()` mediante la pila de llamadas (*Call Stack*)
+
+Una lista enlazada simple solo tiene enlaces hacia adelante (`nodo -> nodo.siguiente`). Para mostrar el historial desde la atención más reciente hasta la más antigua sin arreglos ni pilas auxiliares:
+
+1. **Apilamiento (bajada hasta `null`):** Cada llamada `imprimirDesde(nodo.siguiente)` guarda en su marco de la *call stack* la referencia `nodo` actual y suspende la ejecución de `console.log(nodo.dato)` hasta que retorne la llamada siguiente.
+2. **Caso base (`nodo === null`):** Al llegar al final de la lista, la llamada retorna sin imprimir nada.
+3. **Desapilamiento (subida en orden inverso — LIFO):** Al desapilarse los marcos pendientes, el último nodo en entrar es el primero en imprimirse (atención más reciente) y `this.cabeza` es el último en mostrarse (atención más antigua).
+
+---
+
+### 3. Qué se gana y qué se pierde frente a la versión iterativa
+
+| Criterio | Versión Iterativa (`while`) | Versión Recursiva (`nodo.siguiente`) |
+| :--- | :--- | :--- |
+| **Complejidad temporal** | **$O(n)$** | **$O(n)$** |
+| **Espacio auxiliar en pila** | **$O(1)$** (solo usa un puntero `actual`) | **$O(n)$** (un marco en la *call stack* por cada nodo) |
+| **Ventaja principal** | No consume pila de llamadas; soporta listas muy largas sin riesgo de desbordamiento. | Refleja directamente la definición inductiva de la estructura y permite invertir el recorrido (`imprimirAlReves`) de forma natural. |
+| **Desventaja principal** | Requiere gestionar manualmente punteros de avance o estructuras extra para recorrer en reversa. | Riesgo de desbordamiento de pila (*Maximum call stack size exceeded*) si el historial tiene decenas de miles de nodos. |
