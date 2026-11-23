@@ -256,3 +256,58 @@ Sea $n$ la cantidad de turnos esperando en la sala de espera:
 | **`Pila` (`src/Pila.js`)** | **LIFO** (*Last-In, First-Out* — último en entrar, primero en salir) | Soporta las pilas **`pilaDeshacer`** y **`pilaRehacer`** dentro de `Editor` para revertir o reaplicar siempre la última acción clínica realizada sobre un historial. | • `apilar` (`push`): $O(1)$.<br>• `desapilar` (`pop`): $O(1)$.<br>• `verTope`: $O(1)$.<br>• `estaVacia` / `tamanio`: $O(1)$. |
 | **Índice / Mapa de historiales (`RegistroClinico` en `src/RegistroClinico.js`)** | **Acceso asociativo por clave** (`mascota` $\to$ `ListaEnlazada`) | Vincula el nombre o identificador de cada mascota con su propia `ListaEnlazada` de atenciones para recuperar o modificar su historial clínico. | • Buscar / obtener historial por mascota: $O(1)$ promedio (en `Map` u objeto hash).<br>• Registrar atención vía `Editor`: $O(1)$ en pila + costo de inserción en la lista de la mascota. |
 
+---
+
+## Análisis recursivo del catálogo jerárquico de Patitas (pre-código)
+
+Cada nodo del catálogo tiene la forma `{ nombre, servicios, subcategorias }`, donde `servicios` es un arreglo de `{ nombre, precio }` y `subcategorias` es un arreglo de nodos hijos con la misma estructura.
+
+### 1. `listarServicios(nodo)` (o `obtenerServicios(nodo)`)
+* **Caso base:** Si `nodo` no tiene `subcategorias` o `nodo.subcategorias.length === 0`, no hay subniveles por recorrer; se devuelven únicamente los servicios directos de `nodo.servicios` (o un arreglo vacío si no tiene).
+* **Reducción:** Se llama recursivamente a `listarServicios(sub)` sobre cada subcategoría `sub` dentro de `nodo.subcategorias`, reduciendo el problema a subárboles de menor profundidad hasta llegar a hojas sin subcategorías.
+* **Combinación:** Se concatena el arreglo de servicios propios de `nodo.servicios` con los arreglos de servicios devueltos por cada llamada recursiva en `nodo.subcategorias` (conservando o enriqueciendo el nombre o categoría según pida el enunciado).
+
+### 2. `contarServicios(nodo)` (o `calcularTotalCatalogo(nodo)` / `sumarPrecios(nodo)`)
+* **Caso base:** Si `nodo` no tiene `subcategorias` (`subcategorias.length === 0`), el resultado del subárbol depende solo de los elementos en `nodo.servicios` (por ejemplo, `nodo.servicios.length` si contamos servicios, o la suma de `s.precio` si sumamos precios; `0` si el arreglo está vacío).
+* **Reducción:** Se invoca recursivamente la misma función sobre cada subcategoría hija en `nodo.subcategorias`, avanzando hacia nodos terminales (hojas).
+* **Combinación:** Se suma el valor local del nodo actual (cantidad de servicios o suma de precios de `nodo.servicios`) con los resultados numéricos retornados por cada subcategoría.
+
+### 3. `buscarServicio(nodo, nombreBuscado)` (o `buscarCategoria(nodo, objetivo)`)
+* **Caso base:**
+  * Si se encuentra una coincidencia en `nodo.servicios` (o en el propio `nodo` si se busca categoría), se retorna el resultado encontrado de inmediato.
+  * Si `nodo.subcategorias` está vacío y no hubo coincidencia en el nodo actual, se retorna `null` (o `false` / `[]`, según el tipo de retorno esperado).
+* **Reducción:** Se busca recursivamente en cada subcategoría `sub` de `nodo.subcategorias`, reduciendo el espacio de búsqueda a una rama hija a la vez.
+* **Combinación:** Si una llamada recursiva devuelve un resultado distinto de `null` (o encontrado), se propaga ese resultado hacia arriba sin sobrescribirlo; si ninguna rama lo encuentra, se retorna `null`.
+
+### 4. `calcularProfundidad(nodo)` (niveles de categorías)
+* **Caso base:** Si el nodo no tiene `subcategorias` (`nodo.subcategorias.length === 0`), su profundidad relativa desde ese punto es `1` (o `0` si se mide como aristas/niveles bajo la raíz según la convención del reto).
+* **Reducción:** Se calcula recursivamente la profundidad de cada subcategoría en `nodo.subcategorias`.
+* **Combinación:** Se toma el máximo de las profundidades obtenidas en las subcategorías hijas y se le suma `1` por el nivel del nodo actual.
+
+### Traza de la pila de llamadas: `contarServicios(Cirugías)`
+
+1. Entra `contarServicios("Cirugías")`:
+   - Pila: `[ Cirugías ]`
+   - `serviciosPropios = 0`, `totalSubcategorias = 0`.
+   - Llama a `contarServicios("Esterilización")` (queda esperando retorno).
+
+2. Entra `contarServicios("Esterilización")`:
+   - Pila: `[ Cirugías, Esterilización ]`
+   - `serviciosPropios = 2` (`Gata`, `Perra`), `subcategorias = []` (caso base).
+   - Retorna `2` y sale de la pila (`pop`).
+
+3. Vuelve a `contarServicios("Cirugías")`:
+   - Pila: `[ Cirugías ]`
+   - `totalSubcategorias` pasa a `2`.
+   - Llama a `contarServicios("Limpieza dental")`.
+
+4. Entra `contarServicios("Limpieza dental")`:
+   - Pila: `[ Cirugías, Limpieza dental ]`
+   - `serviciosPropios = 1` (`Con anestesia`), `subcategorias = []` (caso base).
+   - Retorna `1` y sale de la pila (`pop`).
+
+5. Finaliza `contarServicios("Cirugías")`:
+   - Pila: `[ Cirugías ]`
+   - `totalSubcategorias` pasa a `2 + 1 = 3`.
+   - Retorna `0 + 3 = 3` y sale de la pila (`pop`).
+   - Pila final: `[]` -> Resultado: `3`.
