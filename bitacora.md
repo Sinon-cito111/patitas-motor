@@ -216,3 +216,33 @@ Sea $n$ la cantidad de turnos esperando en la sala de espera:
 
 * **El efecto acumulado de `.shift()` ($O(n^2)$ en total):** Aunque encolar $100.000$ turnos cuesta prácticamente lo mismo en ambas estructuras (`1.25 ms` vs. `1.56 ms`), al desencolar toda la fila una por una con `.shift()`, el arreglo realiza $(n - 1) + (n - 2) + \dots + 1 = \frac{n(n - 1)}{2} \approx 5.000.000.000$ desplazamientos de memoria para $n = 100.000$. Eso convierte el vaciado completo de la fila en un proceso cuadrático **$O(n^2)$**.
 * **La ventaja de los punteros en `Cola` ($O(n)$ en total):** Como nuestra `Cola` conecta los turnos mediante nodos enlazados y mantiene referencias directas a `frente` y `final`, cada llamada a `desencolar()` solo redirige una referencia (`this.frente = this.frente.siguiente`) en tiempo constante **$O(1)$**. Vaciar los $100.000$ turnos realiza exactamente $100.000$ pasos simples ($O(n)$ en total), logrando ser **544 veces más rápido** (`1.18 ms`).
+
+---
+
+## Simulación manual de atención — Mañana del sábado (`Recepcion`)
+
+* **Reglas:** 1 solo consultorio, 20 minutos por consulta, prioridad de `Urgencia` sobre `General` (FIFO dentro de cada cola) y solo se atiende a quien ya llegó.
+* **Orden final de atención:** `Toby (8:00) -> Luna (8:20) -> Kira (8:40) -> Rocky (9:00) -> Max (9:20) -> Simón (9:40) -> Nala (10:00)`.
+
+| Hora consultorio | Mascota atendida | Tipo | Hora llegada | Pacientes esperando al momento de llamar |
+| :--- | :--- | :--- | :--- | :--- |
+| **8:00 – 8:20** | **Toby** | General | 8:00 | Ninguno (entró directo) |
+| **8:20 – 8:40** | **Luna** | Urgencia | 8:10 | Urgencias: `[Luna]` \| Generales: `[Max (8:05), Simón (8:20)]` |
+| **8:40 – 9:00** | **Kira** | Urgencia | 8:25 | Urgencias: `[Kira]` \| Generales: `[Max, Simón, Nala (8:40)]` |
+| **9:00 – 9:20** | **Rocky** | Urgencia | 9:00 | Urgencias: `[Rocky]` \| Generales: `[Max, Simón, Nala]` |
+| **9:20 – 9:40** | **Max** | General | 8:05 | Urgencias: `[]` \| Generales: `[Max, Simón, Nala]` |
+| **9:40 – 10:00** | **Simón** | General | 8:20 | Urgencias: `[]` \| Generales: `[Simón, Nala]` |
+| **10:00 – 10:20** | **Nala** | General | 8:40 | Urgencias: `[]` \| Generales: `[Nala]` |
+
+---
+
+## Validación: Cálculo manual vs. Simulación (`src/simulacion.js`)
+
+**Resultado de la comparación:** **Coincidencia exacta (100%)** — no se presentaron discrepancias ni errores que corregir.
+
+* **Orden manual previsto:** `Toby (08:00) -> Luna (08:20) -> Kira (08:40) -> Rocky (09:00) -> Max (09:20) -> Simón (09:40) -> Nala (10:00)`.
+* **Orden ejecutado por `src/simulacion.js`:** `Toby (08:00) -> Luna (08:20) -> Kira (08:40) -> Rocky (09:00) -> Max (09:20) -> Simón (09:40) -> Nala (10:00)`.
+* **Promedios verificados:**
+  * **Urgencias (3 pacientes):** `8.33 minutos` ($\frac{10 + 15 + 0}{3}$).
+  * **Generales (4 pacientes):** `58.75 minutos` ($\frac{0 + 75 + 80 + 80}{4}$).
+* **Por qué funcionó a la primera:** En el ciclo minuto a minuto, primero se registran las llegadas del minuto actual (`registrarLlegada`) y luego se verifica la disponibilidad del consultorio (`llamarSiguiente`), asegurando que pacientes críticos que llegan justo al desocuparse el consultorio (como **Rocky** a las `09:00`) sean priorizados inmediatamente frente a las consultas generales en espera.
